@@ -16,7 +16,7 @@ jobs:
     - name: Set up Ruby
       uses: ruby/setup-ruby@v1
       with:
-        ruby-version: '3.0'
+        ruby-version: '3.1'
         bundler-cache: true
 
     - name: Install Gauge
@@ -38,7 +38,7 @@ jobs:
         path: reports/html-report
 
     - name: Send report to Feishu
-      if: always()
+      if: success()
       run: |
         # 获取测试结果状态
         TEST_STATUS="${{ job.status }}"
