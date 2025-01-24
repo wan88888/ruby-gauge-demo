@@ -1,0 +1,52 @@
+name: Test and Report
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.0'
+        bundler-cache: true
+
+    - name: Install Gauge
+      run: |
+        npm install -g @getgauge/cli
+        gauge install ruby
+        gauge install html-report
+
+    - name: Install dependencies
+      run: bundle install
+
+    - name: Run tests
+      run: gauge run specs/
+
+    - name: Upload test report
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-report
+        path: reports/html-report
+
+    - name: Send report to Feishu
+      if: always()
+      run: |
+        # 获取测试结果状态
+        TEST_STATUS="${{ job.status }}"
+        
+        # 构建消息内容
+        MESSAGE="{\"msg_type\":\"interactive\",\"card\":{\"config\":{\"wide_screen_mode\":true},\"header\":{\"title\":{\"tag\":\"plain_text\",\"content\":\"自动化测试报告\"}},\"elements\":[{\"tag\":\"div\",\"text\":{\"tag\":\"lark_md\",\"content\":\"**测试状态:** ${TEST_STATUS}\n**分支:** ${{ github.ref }}\n**提交:** ${{ github.sha }}\n**触发者:** ${{ github.actor }}\n\n[查看详细报告](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})\"}}]}}"
+        
+        # 发送到飞书
+        curl -X POST -H "Content-Type: application/json" \
+          -d "$MESSAGE" \
+          "${{ secrets.FEISHU_WEBHOOK_URL }}"
